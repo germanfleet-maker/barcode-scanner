@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Barcode Scanner — TopFleet GPS</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: #f0f2f5;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 24px 16px;
+  }
+
+  .header {
+    width: 100%;
+    max-width: 560px;
+    margin-bottom: 20px;
+  }
+
+  .header h1 {
+    font-size: 20px;
+    font-weight: 600;
+    color: #1a1a2e;
+    letter-spacing: -0.3px;
+  }
+
+  .header p {
+    font-size: 13px;
+    color: #888;
+    margin-top: 3px;
+  }
+
+  .card {
+    background: #fff;
+    border-radius: 16px;
+    padding: 24px;
+    width: 100%;
+    max-width: 560px;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.07);
+  }
+
+  .label {
+    font-size: 11px;
+    font-weight: 600;
+    color: #999;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-bottom: 8px;
+  }
+
+  textarea {
+    width: 100%;
+    height: 130px;
+    border: 1.5px solid #e5e7eb;
+    border-radius: 10px;
+    padding: 12px 14px;
+    font-family: 'Courier New', monospace;
+    font-size: 15px;
+    color: #1a1a2e;
+    resize: vertical;
+    outline: none;
+    transition: border-color 0.15s;
+    background: #fafafa;
+  }
+
+  textarea:focus { border-color: #2563eb; background: #fff; }
+  textarea::placeholder { color: #bbb; }
+
+  .btn-primary {
+    width: 100%;
+    margin-top: 12px;
+    padding: 13px;
+    background: #1a1a2e;
+    color: #fff;
+    border: none;
+    border-radius: 10px;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.15s, transform 0.1s;
+    letter-spacing: 0.01em;
+  }
+
+  .btn-primary:hover { background: #2d2d4e; }
+  .btn-primary:active { transform: scale(0.99); }
+  .btn-primary:disabled { background: #ccc; cursor: not-allowed; }
+
+  /* ── SCAN VIEW ── */
+  #scanView { display: none; }
+
+  .progress-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 16px;
+  }
+
+  .progress-track {
+    flex: 1;
+    height: 6px;
+    background: #e5e7eb;
+    border-radius: 20px;
+    overflow: hidden;
+  }
+
+  .progress-fill {
+    height: 100%;
+    background: #2563eb;
+    border-radius: 20px;
+    transition: width 0.3s ease;
+  }
+
+  .progress-text {
+    font-size: 13px;
+    font-weight: 600;
+    color: #888;
+    white-space: nowrap;
+  }
+
+  .bc-box {
+    background: #fff;
+    border: 1.5px solid #e5e7eb;
+    border-radius: 14px;
+    padding: 28px 20px 20px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 200px;
+    margin-bottom: 14px;
+  }
+
+  .bc-box img {
+    max-height: 150px;
+    width: auto;
+    max-width: 100%;
+  }
+
+  .bc-code {
+    font-family: 'Courier New', monospace;
+    font-size: 24px;
+    font-weight: 700;
+    letter-spacing: 0.15em;
+    color: #1a1a2e;
+    margin-top: 14px;
+  }
+
+  .nav-row {
+    display: grid;
+    grid-template-columns: 1fr 2fr;
+    gap: 8px;
+    margin-bottom: 20px;
+  }
+
+  .btn-secondary {
+    padding: 12px;
+    background: #fff;
+    color: #1a1a2e;
+    border: 1.5px solid #e5e7eb;
+    border-radius: 10px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.12s;
+  }
+
+  .btn-secondary:hover { background: #f5f5f5; }
+  .btn-secondary:disabled { color: #ccc; border-color: #eee; cursor: not-allowed; }
+
+  .btn-next {
+    padding: 12px;
+    background: #2563eb;
+    color: #fff;
+    border: none;
+    border-radius: 10px;
+    font-size: 15px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background 0.12s, transform 0.1s;
+  }
+
+  .btn-next:hover { background: #1d4ed8; }
+  .btn-next:active { transform: scale(0.99); }
+
+  .divider { height: 1px; background: #f0f0f0; margin: 16px 0; }
+
+  .queue-scroll {
+    max-height: 160px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+  }
+
+  .q-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 7px 10px;
+    border-radius: 8px;
+    font-size: 13px;
+    transition: background 0.1s;
+  }
+
+  .q-item.pending { background: #fafafa; color: #aaa; }
+  .q-item.active { background: #eff6ff; color: #1d4ed8; font-weight: 600; }
+  .q-item.done { background: #f0fdf4; color: #86efac; text-decoration: line-through; }
+
+  .q-num { font-size: 11px; min-width: 20px; opacity: 0.6; }
+  .q-code { font-family: 'Courier New', monospace; }
+
+  .done-banner {
+    text-align: center;
+    padding: 28px 20px;
+    background: #f0fdf4;
+    border-radius: 14px;
+    border: 1.5px solid #86efac;
+    margin-bottom: 14px;
+  }
+
+  .done-banner .check { font-size: 36px; margin-bottom: 8px; }
+  .done-banner p { font-size: 16px; font-weight: 600; color: #15803d; }
+  .done-banner span { font-size: 13px; color: #86efac; }
+
+  .back-link {
+    width: 100%;
+    padding: 11px;
+    background: none;
+    border: 1.5px solid #e5e7eb;
+    border-radius: 10px;
+    font-size: 13px;
+    color: #888;
+    cursor: pointer;
+    transition: background 0.12s;
+    margin-top: 4px;
+  }
+
+  .back-link:hover { background: #f5f5f5; color: #555; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>Barcode Generator</h1>
+  <p>Paste codes, then scan one at a time</p>
+</div>
+
+<div class="card">
+
+  <!-- INPUT VIEW -->
+  <div id="inputView">
+    <div class="label">Paste codes — one per line</div>
+    <textarea id="codesInput" placeholder="617275&#10;100042&#10;338891&#10;492017&#10;..."></textarea>
+    <button class="btn-primary" onclick="startScan()">Generate &amp; start scanning →</button>
+  </div>
+
+  <!-- SCAN VIEW -->
+  <div id="scanView">
+    <div class="progress-row">
+      <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
+      <span class="progress-text" id="progressText"></span>
+    </div>
+
+    <div id="bcDisplay"></div>
+
+    <div class="nav-row" id="navRow">
+      <button class="btn-secondary" id="prevBtn" onclick="go(-1)">← Prev</button>
+      <button class="btn-next" id="nextBtn" onclick="go(1)">Next →</button>
+    </div>
+
+    <div class="divider"></div>
+
+    <div class="label">All codes</div>
+    <div class="queue-scroll" id="queueList"></div>
+
+    <div class="divider"></div>
+    <button class="back-link" onclick="resetToInput()">← New batch</button>
+  </div>
+
+</div>
+
+<script>
+  let codes = [], idx = 0;
+
+  function startScan() {
+    const raw = document.getElementById('codesInput').value.trim();
+    if (!raw) return;
+    codes = raw.split('\n').map(s => s.trim()).filter(Boolean);
+    if (!codes.length) return;
+    idx = 0;
+    document.getElementById('inputView').style.display = 'none';
+    document.getElementById('scanView').style.display = 'block';
+    buildQueue();
+    render();
+  }
+
+  function buildQueue() {
+    const list = document.getElementById('queueList');
+    list.innerHTML = '';
+    codes.forEach((c, i) => {
+      const d = document.createElement('div');
+      d.className = 'q-item pending';
+      d.id = 'qi-' + i;
+      d.innerHTML = '<span class="q-num">' + (i+1) + '</span><span class="q-code">' + c + '</span>';
+      list.appendChild(d);
+    });
+  }
+
+  function render() {
+    const total = codes.length;
+    const pct = Math.round((idx / total) * 100);
+    document.getElementById('progressFill').style.width = pct + '%';
+    document.getElementById('progressText').textContent = (idx+1) + ' / ' + total;
+
+    const code = codes[idx];
+    document.getElementById('bcDisplay').innerHTML =
+      '<div class="bc-box"><img src="https://barcodeapi.org/api/code128/' + encodeURIComponent(code) + '" alt="Barcode ' + code + '" /><div class="bc-code">' + code + '</div></div>';
+
+    document.getElementById('prevBtn').disabled = idx === 0;
+    const isLast = idx === total - 1;
+    document.getElementById('nextBtn').textContent = isLast ? 'Done ✓' : 'Next →';
+
+    document.querySelectorAll('.q-item').forEach((el, i) => {
+      el.className = 'q-item ' + (i < idx ? 'done' : i === idx ? 'active' : 'pending');
+    });
+    const active = document.getElementById('qi-' + idx);
+    if (active) active.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  }
+
+  function go(dir) {
+    const next = idx + dir;
+    if (next < 0) return;
+    if (next >= codes.length) {
+      document.getElementById('bcDisplay').innerHTML =
+        '<div class="done-banner"><div class="check">✓</div><p>All ' + codes.length + ' codes scanned</p><span>Tap "New batch" to start over</span></div>';
+      document.getElementById('progressFill').style.width = '100%';
+      document.getElementById('progressText').textContent = codes.length + ' / ' + codes.length;
+      document.getElementById('navRow').style.display = 'none';
+      document.querySelectorAll('.q-item').forEach(el => el.className = 'q-item done');
+      return;
+    }
+    idx = next;
+    render();
+  }
+
+  function resetToInput() {
+    codes = []; idx = 0;
+    document.getElementById('scanView').style.display = 'none';
+    document.getElementById('navRow').style.display = 'grid';
+    document.getElementById('inputView').style.display = 'block';
+  }
+</script>
+</body>
+</html>
