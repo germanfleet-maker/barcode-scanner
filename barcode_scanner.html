@@ -353,6 +353,7 @@
   }
 
   function gotoView(n) {
+    if (n === 5) buildSummary();
     document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
     document.getElementById('v' + n).classList.add('active');
     updateStepIndicator(n);
@@ -489,13 +490,6 @@
     document.getElementById('locationSelect2').value = '';
     document.getElementById('locationBcWrap').style.display = 'none';
     document.getElementById('loc2BcWrap').style.display = 'none';
-  }
-
-  // Build summary before showing view 5
-  const origGotoView = gotoView;
-  function gotoView(n) {
-    if (n === 5) buildSummary();
-    origGotoView(n);
   }
 
   function buildSummary() {
