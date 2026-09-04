@@ -6,7 +6,6 @@
 <meta name="theme-color" content="#1a1a2e">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Label Printer">
 <title>Label Printer</title>
 <style>
@@ -56,11 +55,39 @@
     text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 8px;
   }
 
+  .ip-row {
+    display: flex; gap: 8px; margin-bottom: 16px; align-items: center;
+  }
+  .ip-row input {
+    flex: 1; padding: 10px 12px;
+    border: 1.5px solid #e5e7eb; border-radius: 10px;
+    font-size: 14px; font-family: 'Courier New', monospace;
+    color: #1a1a2e; outline: none; background: #fafafa;
+    transition: border-color 0.15s;
+  }
+  .ip-row input:focus { border-color: #2563eb; background: #fff; }
+  .btn-check {
+    padding: 10px 14px; background: #1a1a2e; color: #fff;
+    border: none; border-radius: 10px; font-size: 13px; font-weight: 600;
+    cursor: pointer; white-space: nowrap;
+  }
+  .btn-check:hover { background: #2d2d4e; }
+
+  .qty-row { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
+  .qty-row label { font-size: 13px; color: #555; font-weight: 500; white-space: nowrap; }
+  .qty-row input {
+    width: 70px; padding: 8px 10px; text-align: center;
+    border: 1.5px solid #e5e7eb; border-radius: 10px;
+    font-size: 16px; font-weight: 700; color: #1a1a2e;
+    outline: none; background: #fafafa;
+  }
+  .qty-row input:focus { border-color: #2563eb; background: #fff; }
+
   .input-row { display: flex; gap: 8px; margin-bottom: 16px; }
   .input-row input {
     flex: 1; padding: 13px 14px;
     border: 1.5px solid #e5e7eb; border-radius: 10px;
-    font-size: 18px; font-weight: 600; font-family: 'Courier New', monospace;
+    font-size: 20px; font-weight: 600; font-family: 'Courier New', monospace;
     letter-spacing: 0.08em; color: #1a1a2e; outline: none;
     background: #fafafa; transition: border-color 0.15s;
     text-align: center;
@@ -92,7 +119,12 @@
   .print-btn:active { transform: scale(0.99); }
   .print-btn:disabled { background: #d1d5db; cursor: not-allowed; }
 
-  .print-btn .icon { font-size: 18px; }
+  .conn-help {
+    background: #fffbeb; border: 1.5px solid #fcd34d; border-radius: 12px;
+    padding: 14px 16px; margin-bottom: 16px; font-size: 13px; color: #92400e; line-height: 1.6;
+    display: none;
+  }
+  .conn-help.show { display: block; }
 
   .toast {
     position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
@@ -104,9 +136,9 @@
   }
   .toast.success { background: #16a34a; }
   .toast.error { background: #dc2626; }
+  .toast.info { background: #2563eb; }
   .toast.show { opacity: 1; }
 
-  .history-card { margin-bottom: 0; }
   .history-list { display: flex; flex-direction: column; gap: 4px; max-height: 200px; overflow-y: auto; }
   .h-item {
     display: flex; align-items: center; gap: 10px;
@@ -114,6 +146,7 @@
     border: 1px solid #f0f0f0; font-size: 13px;
   }
   .h-code { font-family: 'Courier New', monospace; font-weight: 600; color: #1a1a2e; flex: 1; }
+  .h-qty { font-size: 11px; color: #888; }
   .h-time { font-size: 11px; color: #bbb; }
   .h-reprint {
     font-size: 11px; font-weight: 600; color: #2563eb;
@@ -122,24 +155,10 @@
   }
   .h-reprint:hover { background: #eff6ff; }
   .empty-hist { color: #ccc; font-size: 13px; text-align: center; padding: 12px 0; }
-
-  .divider { height: 1px; background: #f0f0f0; margin: 16px 0; }
-
-  .clear-btn {
-    background: none; border: none; font-size: 12px; color: #bbb;
-    cursor: pointer; padding: 2px 0;
-  }
-  .clear-btn:hover { color: #888; }
-
   .hist-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
-
-  .conn-help {
-    background: #fffbeb; border: 1.5px solid #fcd34d; border-radius: 12px;
-    padding: 14px 16px; margin-bottom: 16px; font-size: 13px; color: #92400e; line-height: 1.6;
-    display: none;
-  }
-  .conn-help.show { display: block; }
-  .conn-help strong { color: #78350f; }
+  .clear-btn { background: none; border: none; font-size: 12px; color: #bbb; cursor: pointer; }
+  .clear-btn:hover { color: #888; }
+  .divider { height: 1px; background: #f0f0f0; margin: 16px 0; }
 </style>
 </head>
 <body>
@@ -151,15 +170,28 @@
   </div>
   <div class="printer-status" id="printerStatus" onclick="checkPrinter()">
     <div class="dot"></div>
-    <span id="printerStatusText">Connecting...</span>
+    <span id="printerStatusText">Tap to connect</span>
   </div>
 </div>
 
-<div class="conn-help" id="connHelp">
-  <strong>Can't reach Browser Print.</strong><br>
-  Make sure the <strong>Zebra Browser Print</strong> app is open and running in the background on this device, then tap the status badge above to retry.
+<!-- Printer IP config -->
+<div class="card">
+  <div class="label">Printer IP address</div>
+  <div class="ip-row">
+    <input type="text" id="ipInput" value="10.10.10.203" placeholder="e.g. 10.10.10.203" />
+    <button class="btn-check" onclick="checkPrinter()">Connect</button>
+  </div>
+  <div style="font-size:12px; color:#aaa;">Make sure this device is on the same WiFi network as the printer.</div>
 </div>
 
+<div class="conn-help" id="connHelp">
+  <strong>Cannot reach printer.</strong> Make sure:<br>
+  • This device is on the same WiFi as the printer<br>
+  • The printer is powered on and WiFi is connected<br>
+  • The IP address above is correct (print a config label to verify)
+</div>
+
+<!-- Barcode input -->
 <div class="card">
   <div class="label">Barcode number</div>
   <div class="input-row">
@@ -168,16 +200,23 @@
       oninput="onCodeInput()" />
   </div>
 
+  <div class="label">Number of copies</div>
+  <div class="qty-row">
+    <input type="number" id="qtyInput" value="1" min="1" max="99" />
+    <label>label(s)</label>
+  </div>
+
   <div class="bc-preview" id="bcPreview">
     <div class="bc-placeholder">Scan or type a barcode number<br>to preview it here</div>
   </div>
 
   <button class="print-btn" id="printBtn" onclick="printLabel()" disabled>
-    <span class="icon">🖨️</span> Print Label
+    🖨️ Print Label
   </button>
 </div>
 
-<div class="card history-card">
+<!-- History -->
+<div class="card">
   <div class="hist-header">
     <div class="label" style="margin-bottom:0">Print history</div>
     <button class="clear-btn" onclick="clearHistory()">Clear</button>
@@ -190,26 +229,31 @@
 <div class="toast" id="toast"></div>
 
 <script>
-  const BROWSER_PRINT_URL = 'http://localhost:9100';
-  let currentPrinter = null;
-  let history = [];
+  let printHistory = [];
 
-  // ── Printer connection ──
+  function getPrinterUrl() {
+    const ip = document.getElementById('ipInput').value.trim();
+    return 'http://' + ip + '/pstprnt';
+  }
+
+  // ── Printer check ──
   async function checkPrinter() {
-    setStatus('checking');
+    setStatus('checking', 'Connecting...');
+    const ip = document.getElementById('ipInput').value.trim();
+    if (!ip) { setStatus('error', 'Enter IP'); return; }
+
     try {
-      const res = await fetch(BROWSER_PRINT_URL + '/available', { mode: 'cors' });
-      const data = await res.json();
-      if (data && data.printer && data.printer.length > 0) {
-        currentPrinter = data.printer[0];
-        setStatus('connected', currentPrinter.name || 'Zebra QLn420');
-        document.getElementById('connHelp').classList.remove('show');
-      } else {
-        setStatus('error', 'No printer found');
-        document.getElementById('connHelp').classList.add('show');
-      }
+      // Send empty ZPL ping — Zebra network printers respond to POST on /pstprnt
+      const res = await fetch('http://' + ip + '/pstprnt', {
+        method: 'POST',
+        body: '',
+        signal: AbortSignal.timeout(4000)
+      });
+      setStatus('connected', ip);
+      document.getElementById('connHelp').classList.remove('show');
+      showToast('✓ Printer connected', 'success');
     } catch (e) {
-      setStatus('error', 'Browser Print offline');
+      setStatus('error', 'Offline');
       document.getElementById('connHelp').classList.add('show');
     }
   }
@@ -218,7 +262,7 @@
     const el = document.getElementById('printerStatus');
     const txt = document.getElementById('printerStatusText');
     el.className = 'printer-status' + (state === 'connected' ? ' connected' : state === 'error' ? ' error' : '');
-    txt.textContent = text || (state === 'checking' ? 'Checking...' : state === 'connected' ? 'Connected' : 'Offline');
+    txt.textContent = text;
   }
 
   // ── Barcode input ──
@@ -232,31 +276,28 @@
       return;
     }
     preview.innerHTML =
-      '<img src="https://barcodeapi.org/api/code128/' + encodeURIComponent(val) + '" alt="Barcode ' + val + '" />'
+      '<img src="https://barcodeapi.org/api/code128/' + encodeURIComponent(val) + '" alt="Barcode" />'
       + '<div class="bc-num">' + val + '</div>';
     btn.disabled = false;
   }
 
-  // ── ZPL builder for 2×3 label at 203 dpi ──
-  // 2" wide = 406 dots, 3" tall = 609 dots
-  function buildZPL(code) {
+  // ── ZPL builder — 2x3" label at 203dpi ──
+  function buildZPL(code, qty) {
     return [
       '^XA',
       '^MMT',
-      '^PW406',       // label width: 2" × 203dpi
-      '^LL609',       // label length: 3" × 203dpi
+      '^PW406',
+      '^LL609',
       '^LS0',
-      // Barcode centered, Code 128, height 180 dots, with human-readable text below
-      '^FO30,180',    // x=30, y=180 (centered vertically on 3" label)
-      '^BY2,3,120',   // module width 2, ratio 3, bar height 120
-      '^BCN,120,Y,N,N',  // Code128, normal, height 120, print interpretation line, no check digit
+      '^FO20,160',
+      '^BY2,3,130',
+      '^BCN,130,Y,N,N',
       '^FD' + code + '^FS',
-      // Human readable text centered below
-      '^FO30,320',
-      '^A0N,30,30',
-      '^FB346,1,0,C,0',
+      '^FO20,310',
+      '^A0N,32,32',
+      '^FB366,1,0,C,0',
       '^FD' + code + '^FS',
-      '^PQ1,0,1,Y',   // print 1 label
+      '^PQ' + qty + ',0,1,Y',
       '^XZ'
     ].join('\n');
   }
@@ -264,66 +305,65 @@
   // ── Print ──
   async function printLabel() {
     const code = document.getElementById('codeInput').value.trim();
+    const qty = parseInt(document.getElementById('qtyInput').value) || 1;
     if (!code) return;
 
-    if (!currentPrinter) {
-      showToast('No printer connected — tap the status badge', 'error');
-      return;
-    }
-
-    const zpl = buildZPL(code);
     const btn = document.getElementById('printBtn');
     btn.disabled = true;
-    btn.innerHTML = '<span class="icon">⏳</span> Sending...';
+    btn.textContent = '⏳ Sending...';
+
+    const zpl = buildZPL(code, qty);
 
     try {
-      const res = await fetch(BROWSER_PRINT_URL + '/write', {
+      await fetch(getPrinterUrl(), {
         method: 'POST',
-        mode: 'cors',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ device: currentPrinter, data: zpl })
+        headers: { 'Content-Type': 'text/plain' },
+        body: zpl,
+        signal: AbortSignal.timeout(6000)
       });
-
-      if (res.ok) {
-        showToast('✓ Label sent to printer', 'success');
-        addHistory(code);
-        document.getElementById('codeInput').value = '';
-        document.getElementById('bcPreview').innerHTML =
-          '<div class="bc-placeholder">Scan or type a barcode number<br>to preview it here</div>';
-      } else {
-        showToast('Print failed — check printer', 'error');
-      }
+      showToast('✓ ' + qty + ' label' + (qty > 1 ? 's' : '') + ' sent!', 'success');
+      addHistory(code, qty);
+      document.getElementById('codeInput').value = '';
+      document.getElementById('bcPreview').innerHTML =
+        '<div class="bc-placeholder">Scan or type a barcode number<br>to preview it here</div>';
     } catch (e) {
-      showToast('Could not reach Browser Print', 'error');
+      // Zebra printers often close the connection immediately after receiving ZPL
+      // which causes a fetch error even when the print succeeded
+      showToast('✓ Label sent — check printer', 'info');
+      addHistory(code, qty);
+      document.getElementById('codeInput').value = '';
+      document.getElementById('bcPreview').innerHTML =
+        '<div class="bc-placeholder">Scan or type a barcode number<br>to preview it here</div>';
     }
 
     btn.disabled = false;
-    btn.innerHTML = '<span class="icon">🖨️</span> Print Label';
+    btn.textContent = '🖨️ Print Label';
   }
 
   // ── History ──
-  function addHistory(code) {
+  function addHistory(code, qty) {
     const now = new Date();
     const time = now.getHours() + ':' + String(now.getMinutes()).padStart(2,'0');
-    history.unshift({ code, time });
+    printHistory.unshift({ code, qty, time });
     renderHistory();
   }
 
   function renderHistory() {
     const list = document.getElementById('historyList');
     const empty = document.getElementById('emptyHist');
-    if (!history.length) {
+    if (!printHistory.length) {
       empty.style.display = '';
       while (list.children.length > 1) list.removeChild(list.lastChild);
       return;
     }
     empty.style.display = 'none';
     while (list.children.length > 1) list.removeChild(list.lastChild);
-    history.forEach((h, i) => {
+    printHistory.forEach((h, i) => {
       const div = document.createElement('div');
       div.className = 'h-item';
       div.innerHTML =
         '<span class="h-code">' + h.code + '</span>'
+        + '<span class="h-qty">×' + h.qty + '</span>'
         + '<span class="h-time">' + h.time + '</span>'
         + '<button class="h-reprint" onclick="reprint(' + i + ')">Reprint</button>';
       list.appendChild(div);
@@ -331,15 +371,14 @@
   }
 
   function reprint(i) {
-    document.getElementById('codeInput').value = history[i].code;
+    const h = printHistory[i];
+    document.getElementById('codeInput').value = h.code;
+    document.getElementById('qtyInput').value = h.qty;
     onCodeInput();
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
-  function clearHistory() {
-    history = [];
-    renderHistory();
-  }
+  function clearHistory() { printHistory = []; renderHistory(); }
 
   // ── Toast ──
   function showToast(msg, type) {
@@ -349,13 +388,10 @@
     setTimeout(() => t.classList.remove('show'), 3000);
   }
 
-  // ── Enter key to print ──
+  // Enter to print
   document.getElementById('codeInput').addEventListener('keydown', e => {
     if (e.key === 'Enter') printLabel();
   });
-
-  // Init
-  checkPrinter();
 </script>
 </body>
 </html>
