@@ -283,19 +283,20 @@
 
   // ── ZPL builder — 2x3" label at 203dpi ──
   function buildZPL(code, qty) {
+    // Landscape 3" x 2" at 203dpi = 609 wide x 406 tall
     return [
       '^XA',
       '^MMT',
-      '^PW406',
-      '^LL609',
+      '^PW609',
+      '^LL406',
       '^LS0',
-      '^FO20,160',
-      '^BY2,3,130',
-      '^BCN,130,Y,N,N',
+      '^FO20,20',
+      '^BY3,3,200',
+      '^BCN,200,N,N,N',
       '^FD' + code + '^FS',
-      '^FO20,310',
-      '^A0N,32,32',
-      '^FB366,1,0,C,0',
+      '^FO20,230',
+      '^A0N,45,45',
+      '^FB569,1,0,C,0',
       '^FD' + code + '^FS',
       '^PQ' + qty + ',0,1,Y',
       '^XZ'
