@@ -139,7 +139,7 @@ padding: 28px 20px 20px;
 display: flex; flex-direction: column; align-items: center; justify-content: center;
 min-height: 190px; margin-bottom: 14px;
 }
-.bc-box img { max-height: 140px; width: auto; max-width: 100%; }
+.bc-box svg { max-width: 100%; height: auto; }
 .bc-code {
 font-family: 'Courier New', monospace; font-size: 22px; font-weight: 700;
 letter-spacing: 0.12em; color: #1a1a2e; margin-top: 12px;
@@ -305,6 +305,7 @@ font-size: 15px; font-weight: 700; color: #1a1a2e; margin-bottom: 4px;
 
 </div>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jsbarcode/3.11.6/JsBarcode.all.min.js"></script>
 <script>
 const LOCATIONS = [
 { name: '[LA] DESIGN OPS - RESERVATION', code: '453853' },
@@ -343,12 +344,15 @@ sel.appendChild(opt);
 }
 populateSelects();
 
-function barcodeUrl(code) {
-return 'https://barcodeapi.org/api/code128/' + encodeURIComponent(code);
+// Draw Code128 locally (barcodeapi.org no longer resolves)
+function barcodeSVG(code) {
+const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+JsBarcode(svg, code, { format: 'CODE128', displayValue: false, width: 2, height: 110, margin: 10 });
+return svg.outerHTML;
 }
 
 function bcHTML(code, sublabel) {
-return '<img src="' + barcodeUrl(code) + '" alt="Barcode ' + code + '" />'
+return barcodeSVG(code)
 + '<div class="bc-code">' + code + '</div>'
 + (sublabel ? '<div class="bc-sublabel">' + sublabel + '</div>' : '');
 }
@@ -424,7 +428,7 @@ document.getElementById('progressText').textContent = (idx+1) + ' / ' + total;
 
 const code = codes[idx];
 document.getElementById('bcDisplay').innerHTML =
-'<div class="bc-box"><img src="' + barcodeUrl(code) + '" alt="Barcode ' + code + '" />'
+'<div class="bc-box">' + barcodeSVG(code)
 + '<div class="bc-code">' + code + '</div></div>';
 
 document.getElementById('prevBtn').disabled = idx === 0;
