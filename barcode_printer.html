@@ -106,7 +106,47 @@
     font-family: 'Courier New', monospace; font-size: 20px; font-weight: 700;
     letter-spacing: 0.12em; color: #1a1a2e; margin-top: 10px;
   }
+  .bc-preview .bc-desc {
+    font-size: 15px; font-weight: 600; color: #333; margin-top: 6px;
+    text-align: center; max-width: 100%; overflow-wrap: anywhere;
+  }
   .bc-placeholder { color: #ccc; font-size: 13px; text-align: center; line-height: 1.6; }
+
+  .input-row input { min-width: 0; }
+  .scan-btn {
+    flex-shrink: 0; width: 54px;
+    background: #1a1a2e; color: #fff; border: none; border-radius: 10px;
+    font-size: 22px; cursor: pointer;
+  }
+  .scan-btn:hover { background: #2d2d4e; }
+
+  .scan-overlay {
+    position: fixed; inset: 0; z-index: 1000;
+    background: rgba(0,0,0,0.85);
+    display: none; flex-direction: column; align-items: center; justify-content: center;
+    padding: 16px;
+  }
+  .scan-overlay.show { display: flex; }
+  .scan-box {
+    width: 100%; max-width: 480px; background: #000;
+    border-radius: 12px; overflow: hidden; min-height: 200px;
+  }
+  .scan-msg { color: #fff; font-size: 14px; margin: 14px 0; text-align: center; line-height: 1.5; }
+  .scan-cancel {
+    padding: 12px 28px; background: #fff; color: #1a1a2e;
+    border: none; border-radius: 12px; font-size: 15px; font-weight: 700; cursor: pointer;
+  }
+
+  .desc-row { margin-bottom: 16px; }
+  .desc-row input {
+    width: 100%; padding: 11px 14px;
+    border: 1.5px solid #e5e7eb; border-radius: 10px;
+    font-size: 15px; color: #1a1a2e; outline: none;
+    background: #fafafa; transition: border-color 0.15s;
+  }
+  .desc-row input:focus { border-color: #2563eb; background: #fff; }
+  .desc-row input::placeholder { color: #bbb; }
+  .desc-count { font-size: 11px; color: #bbb; text-align: right; margin-top: 4px; }
 
   .print-btn {
     width: 100%; padding: 15px;
@@ -145,7 +185,12 @@
     padding: 8px 10px; background: #fafafa; border-radius: 8px;
     border: 1px solid #f0f0f0; font-size: 13px;
   }
-  .h-code { font-family: 'Courier New', monospace; font-weight: 600; color: #1a1a2e; flex: 1; }
+  .h-code { font-family: 'Courier New', monospace; font-weight: 600; color: #1a1a2e; flex: 1; min-width: 0; }
+  .h-desc {
+    display: block; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-weight: 400; font-size: 11px; color: #888;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
   .h-qty { font-size: 11px; color: #888; }
   .h-time { font-size: 11px; color: #bbb; }
   .h-reprint {
@@ -159,14 +204,23 @@
   .clear-btn { background: none; border: none; font-size: 12px; color: #bbb; cursor: pointer; }
   .clear-btn:hover { color: #888; }
   .divider { height: 1px; background: #f0f0f0; margin: 16px 0; }
+
+  .lookup-status { font-size: 12px; color: #aaa; line-height: 1.5; }
+  .lookup-status.loaded { color: #15803d; font-weight: 600; }
+  .bc-preview .bc-id {
+    font-size: 15px; font-weight: 700; color: #1a1a2e; margin-top: 6px;
+  }
+  .bc-preview .bc-nomatch {
+    font-size: 12px; color: #b45309; margin-top: 6px;
+  }
 </style>
 </head>
 <body>
 
 <div class="header">
   <div>
-    <h1>Label Printer</h1>
-    <p>Zebra QLn420 · 2×3 label</p>
+    <h1 id="appTitle" style="user-select:none; -webkit-user-select:none;">Label Printer</h1>
+    <p>Zebra ZQ511 · 2×3 label</p>
   </div>
   <div class="printer-status" id="printerStatus" onclick="checkPrinter()">
     <div class="dot"></div>
@@ -178,17 +232,37 @@
 <div class="card">
   <div class="label">Printer IP address</div>
   <div class="ip-row">
-    <input type="text" id="ipInput" value="10.10.10.203" placeholder="e.g. 10.10.10.203" />
+    <input type="text" id="ipInput" value="10.10.11.75" placeholder="e.g. 10.10.11.75" />
     <button class="btn-check" onclick="checkPrinter()">Connect</button>
   </div>
   <div style="font-size:12px; color:#aaa;">Make sure this device is on the same WiFi network as the printer.</div>
 </div>
 
 <div class="conn-help" id="connHelp">
-  <strong>Cannot reach printer.</strong> Make sure:<br>
+  <div id="trustHelp" style="display:none; margin-bottom:12px;">
+    <strong>Approve the printer to connect.</strong> The browser needs your OK for the
+    printer's security certificate each time it restarts.
+    <button class="print-btn" onclick="trustPrinter()" style="margin:10px 0 8px; padding:12px; font-size:15px;">
+      🔓 Approve printer
+    </button>
+    On the warning, tap <em>Advanced</em> → <em>Proceed</em> (Chrome) or
+    <em>Show Details</em> → <em>visit this website</em> (iPhone), then come back to this tab.
+    It reconnects automatically.
+  </div>
+  <strong>Still can't connect?</strong> Make sure:<br>
   • This device is on the same WiFi as the printer<br>
   • The printer is powered on and WiFi is connected<br>
   • The IP address above is correct (print a config label to verify)
+</div>
+
+<!-- Item lookup data -->
+<div class="card">
+  <div class="label">Item lookup data</div>
+  <div class="lookup-status" id="lookupStatus">Loading item list…</div>
+  <div class="desc-row" style="margin-top:8px">
+    <input type="file" id="lookupFile" accept=".csv,text/csv" onchange="onLookupFile(this)" />
+  </div>
+  <div class="lookup-status">Optional: pick a different CSV on this device to use instead.</div>
 </div>
 
 <!-- Barcode input -->
@@ -198,6 +272,14 @@
     <input type="text" id="codeInput" placeholder="Scan or type barcode"
       autocomplete="off" spellcheck="false" inputmode="numeric"
       oninput="onCodeInput()" />
+    <button class="scan-btn" onclick="openScanner()" title="Scan with camera">📷</button>
+  </div>
+
+  <div class="label">Description (auto-filled from lookup)</div>
+  <div class="desc-row">
+    <input type="text" id="descInput" placeholder="e.g. Blue widget, Shelf A3"
+      autocomplete="off" maxlength="120" oninput="onDescInput()" />
+    <div class="desc-count" id="descCount">0 / 120</div>
   </div>
 
   <div class="label">Number of copies</div>
@@ -215,6 +297,35 @@
   </button>
 </div>
 
+<!-- Hidden image mode (tap the title 5 times) -->
+<div class="card" id="imageCard" style="display:none">
+  <div class="label">Emoji</div>
+  <div class="desc-row">
+    <input type="text" id="emojiInput" placeholder="Type or paste an emoji, e.g. 🍕"
+      autocomplete="off" oninput="onEmojiInput()" />
+  </div>
+
+  <div class="label">Or choose an image</div>
+  <div class="desc-row">
+    <input type="file" id="imageFile" accept="image/*" onchange="onImageFile(this)" />
+  </div>
+
+  <div class="label">Number of copies</div>
+  <div class="qty-row">
+    <input type="number" id="imgQtyInput" value="1" min="1" max="99" />
+    <label>label(s)</label>
+  </div>
+
+  <div class="bc-preview">
+    <div class="bc-placeholder" id="imgPlaceholder">Pick an emoji or image<br>to see how it will print</div>
+    <canvas id="imgPreview" style="display:none; max-width:100%; height:auto; background:#fff; border:1px solid #eee;"></canvas>
+  </div>
+
+  <button class="print-btn" id="imgPrintBtn" onclick="printImage()" disabled>
+    🖨️ Print Image
+  </button>
+</div>
+
 <!-- History -->
 <div class="card">
   <div class="hist-header">
@@ -226,32 +337,80 @@
   </div>
 </div>
 
+<!-- Camera scanner -->
+<div class="scan-overlay" id="scanOverlay">
+  <div class="scan-box" id="scanReader"></div>
+  <div class="scan-msg" id="scanMsg">Point the camera at a barcode</div>
+  <button class="scan-cancel" onclick="closeScanner()">Cancel</button>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script>
   let printHistory = [];
 
+  // Remember the printer IP on this device
+  const ipInput = document.getElementById('ipInput');
+  // 10.10.10.243 was the printer's old address; devices that saved it get the new default
+  try {
+    const saved = localStorage.getItem('zq511_ip');
+    if (saved && saved !== '10.10.10.243') ipInput.value = saved;
+  } catch (e) {}
+  ipInput.addEventListener('change', () => {
+    try { localStorage.setItem('zq511_ip', ipInput.value.trim()); } catch (e) {}
+  });
+
+  // A secure (https) page such as GitHub Pages may not call http:// addresses,
+  // so talk to the printer over its own HTTPS port in that case.
+  const PRINTER_SCHEME = location.protocol === 'https:' ? 'https://' : 'http://';
+
+  function getPrinterBase() {
+    return PRINTER_SCHEME + document.getElementById('ipInput').value.trim();
+  }
+
   function getPrinterUrl() {
-    const ip = document.getElementById('ipInput').value.trim();
-    return 'http://' + ip + '/pstprnt';
+    return getPrinterBase() + '/pstprnt';
+  }
+
+  let trustOpened = false;
+
+  function trustPrinter() {
+    trustOpened = true;
+    window.open(getPrinterBase() + '/', '_blank');
+  }
+
+  // After approving the printer in the other tab, reconnect when the user returns.
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible' && trustOpened) {
+      trustOpened = false;
+      checkPrinter();
+    }
+  });
+
+  if (PRINTER_SCHEME === 'https://') document.getElementById('trustHelp').style.display = '';
+
+  function escapeHtml(s) {
+    return s.replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   }
 
   // ── Printer check ──
-  async function checkPrinter() {
+  async function checkPrinter(silent) {
     setStatus('checking', 'Connecting...');
     const ip = document.getElementById('ipInput').value.trim();
     if (!ip) { setStatus('error', 'Enter IP'); return; }
 
     try {
-      // Send empty ZPL ping — Zebra network printers respond to POST on /pstprnt
-      const res = await fetch('http://' + ip + '/pstprnt', {
+      // Send empty ZPL ping. The printer sends no CORS headers, so use no-cors:
+      // the fetch resolves (opaque) if the printer is reachable and rejects if not.
+      await fetch(getPrinterUrl(), {
         method: 'POST',
+        mode: 'no-cors',
         body: '',
         signal: AbortSignal.timeout(4000)
       });
       setStatus('connected', ip);
       document.getElementById('connHelp').classList.remove('show');
-      showToast('✓ Printer connected', 'success');
+      if (!silent) showToast('✓ Printer connected', 'success');
     } catch (e) {
       setStatus('error', 'Offline');
       document.getElementById('connHelp').classList.add('show');
@@ -265,9 +424,131 @@
     txt.textContent = text;
   }
 
+  // ── Item lookup ──
+  // barcode_lookup.csv next to this page is loaded automatically; a CSV picked
+  // on the device replaces it until the page is reloaded.
+  // Expected columns: serial_number, kind (item | area), ref_id, ref_name
+  const LOOKUP_URL = 'barcode_lookup.csv';
+  let lookup = new Map();
+  let lastLookupKey = null;      // barcode that the description was last auto-filled for
+  let descAutoFilled = false;    // true while the description text came from the lookup
+
+  function parseCSV(text) {
+    if (text.charCodeAt(0) === 0xFEFF) text = text.slice(1);   // strip BOM
+    const rows = [];
+    let row = [], field = '', q = false;
+    for (let i = 0; i < text.length; i++) {
+      const c = text[i];
+      if (q) {
+        if (c === '"') {
+          if (text[i + 1] === '"') { field += '"'; i++; } else q = false;
+        } else field += c;
+      } else if (c === '"') q = true;
+      else if (c === ',') { row.push(field); field = ''; }
+      else if (c === '\n' || c === '\r') {
+        if (c === '\r' && text[i + 1] === '\n') i++;
+        row.push(field); field = '';
+        if (row.length > 1 || row[0] !== '') rows.push(row);
+        row = [];
+      } else field += c;
+    }
+    if (field !== '' || row.length) { row.push(field); rows.push(row); }
+    return rows;
+  }
+
+  // Returns false if the CSV is missing the required columns.
+  function loadLookup(text, source) {
+    const rows = parseCSV(text);
+    const head = (rows.shift() || []).map(h => h.trim().toLowerCase());
+    const iSerial = head.indexOf('serial_number'), iKind = head.indexOf('kind'),
+          iId = head.indexOf('ref_id'), iName = head.indexOf('ref_name');
+    if (iSerial < 0 || iName < 0) return false;
+    const map = new Map();
+    let items = 0, areas = 0;
+    rows.forEach(r => {
+      const serial = (r[iSerial] || '').trim();
+      if (!serial) return;
+      const kind = iKind >= 0 && (r[iKind] || '').trim().toLowerCase() === 'area' ? 'area' : 'item';
+      map.set(serial, {
+        kind,
+        id: iId >= 0 ? (r[iId] || '').trim() : '',
+        name: (r[iName] || '').replace(/\s+/g, ' ').trim()
+      });
+      if (kind === 'area') areas++; else items++;
+    });
+    lookup = map;
+    lastLookupKey = null;
+    const st = document.getElementById('lookupStatus');
+    st.textContent = '✓ ' + map.size + ' barcodes loaded from ' + source
+      + ' (' + items + ' items, ' + areas + ' locations)';
+    st.className = 'lookup-status loaded';
+    onCodeInput();
+    return true;
+  }
+
+  async function loadDefaultLookup() {
+    const st = document.getElementById('lookupStatus');
+    try {
+      // no-cache: always pick up a newly uploaded CSV instead of an old copy
+      const res = await fetch(LOOKUP_URL, { cache: 'no-cache' });
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      if (lookup.size) return;   // a file was picked on the device meanwhile; keep it
+      if (!loadLookup(await res.text(), LOOKUP_URL)) {
+        st.textContent = '✗ ' + LOOKUP_URL + ' needs serial_number and ref_name columns.';
+        st.className = 'lookup-status';
+      }
+    } catch (e) {
+      if (lookup.size) return;
+      st.textContent = 'Item list not found (' + LOOKUP_URL + '). Labels print the barcode number only.';
+      st.className = 'lookup-status';
+    }
+  }
+
+  function onLookupFile(input) {
+    const file = input.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (loadLookup(String(reader.result), file.name)) showToast('✓ Lookup data loaded', 'success');
+      else showToast('✗ CSV needs serial_number and ref_name columns', 'error');
+    };
+    reader.onerror = () => showToast('✗ Could not read that file', 'error');
+    reader.readAsText(file);
+  }
+
+  // Tag sent in the page link by the Hunt Board artifact (see readLinkJob)
+  let linkJob = null;
+
+  function findInfo(code) {
+    return lookup.get(code) || (linkJob && linkJob.code === code ? linkJob.info : null);
+  }
+
+  function idLineText(info) {
+    return info.kind === 'area' ? 'Location' : 'Item ID: ' + info.id;
+  }
+
   // ── Barcode input ──
+  function onDescInput() {
+    descAutoFilled = false;   // the person is editing the text, so keep it
+    onCodeInput();
+  }
+
   function onCodeInput() {
     const val = document.getElementById('codeInput').value.trim();
+    const descEl = document.getElementById('descInput');
+    const info = val ? findInfo(val) : null;
+
+    // Fill the description when a barcode matches; clear it again if the
+    // barcode changes to something with no match (only if we filled it).
+    const key = info ? val : null;
+    if (key !== lastLookupKey) {
+      lastLookupKey = key;
+      if (info) { descEl.value = info.name.slice(0, 120); descAutoFilled = true; }
+      else if (descAutoFilled) { descEl.value = ''; descAutoFilled = false; }
+    }
+
+    const desc = descEl.value.trim();
+    document.getElementById('descCount').textContent = descEl.value.length + ' / 120';
     const preview = document.getElementById('bcPreview');
     const btn = document.getElementById('printBtn');
     if (!val) {
@@ -277,35 +558,88 @@
     }
     preview.innerHTML =
       '<img src="https://barcodeapi.org/api/code128/' + encodeURIComponent(val) + '" alt="Barcode" />'
-      + '<div class="bc-num">' + val + '</div>';
+      + '<div class="bc-num">' + escapeHtml(val) + '</div>'
+      + (info ? '<div class="bc-id">' + escapeHtml(idLineText(info)) + '</div>' : '')
+      + (!info && lookup.size ? '<div class="bc-nomatch">Not in lookup data</div>' : '')
+      + (desc ? '<div class="bc-desc">' + escapeHtml(desc) + '</div>' : '');
     btn.disabled = false;
   }
 
   // ── ZPL builder — 2x3" label at 203dpi ──
-  function buildZPL(code, qty) {
-    // Landscape 3" x 2" at 203dpi = 609 wide x 406 tall
-    return [
+  // ZQ511 printhead is 2.83" wide = 576 dots max (the QLn420 used 609).
+  const PW = 576, MARGIN = 20;
+
+  function buildZPL(code, qty, desc, info) {
+    code = code.replace(/[\^~]/g, '');   // ^ and ~ are ZPL control characters
+    desc = (desc || '').replace(/[\^~]/g, '').replace(/\\&/g, '&');  // \& is a line break inside ^FB
+    const idLine = info ? idLineText(info).replace(/[\^~]/g, '') : '';
+
+    // Estimate Code 128 width (auto mode packs digit pairs) and pick the
+    // widest bar module that still fits, then center the barcode.
+    const chars = /^\d+$/.test(code) ? Math.ceil(code.length / 2) : code.length;
+    const modules = 11 * (chars + 2) + 13;
+    let w = 3;
+    while (w > 1 && modules * w > PW - 2 * MARGIN) w--;
+    const x = Math.max(MARGIN, Math.round((PW - modules * w) / 2));
+
+    // 3" x 2" label at 203dpi = 576 printable wide x 406 tall.
+    // With lookup info the barcode is shorter to make room for the ID line.
+    const barH = info ? 140 : 200;
+    const numY = info ? 170 : 230;
+    const numFont = info ? 40 : 45;
+    const fbW = PW - 2 * MARGIN;
+    const zpl = [
       '^XA',
+      '^CI28',   // UTF-8 text, so accented characters print correctly
       '^MMT',
-      '^PW609',
+      '^PW' + PW,
       '^LL406',
       '^LS0',
-      '^FO20,20',
-      '^BY3,3,200',
-      '^BCN,200,N,N,N',
+      '^FO' + x + ',20',
+      '^BY' + w + ',3,' + barH,
+      '^BCN,' + barH + ',N,N,N,A',
       '^FD' + code + '^FS',
-      '^FO20,230',
-      '^A0N,45,45',
-      '^FB569,1,0,C,0',
-      '^FD' + code + '^FS',
-      '^PQ' + qty + ',0,1,Y',
-      '^XZ'
-    ].join('\n');
+      '^FO' + MARGIN + ',' + numY,
+      '^A0N,' + numFont + ',' + numFont,
+      '^FB' + fbW + ',1,0,C,0',
+      '^FD' + code + '^FS'
+    ];
+    if (info) {
+      zpl.push(
+        '^FO' + MARGIN + ',218',
+        '^A0N,36,36',
+        '^FB' + fbW + ',1,0,C,0',
+        '^FD' + idLine + '^FS'
+      );
+      if (desc) {
+        // Name under the ID line (y 262–400); shrink the font for long names
+        const n = desc.length;
+        const size = n <= 24 ? 40 : n <= 90 ? 30 : 26;
+        const lines = n <= 24 ? 1 : n <= 90 ? 3 : 4;
+        zpl.push(
+          '^FO' + MARGIN + ',262',
+          '^A0N,' + size + ',' + size,
+          '^FB' + fbW + ',' + lines + ',3,C,0',
+          '^FD' + desc + '^FS'
+        );
+      }
+    } else if (desc) {
+      // Up to 3 centered lines under the number (y 285–393)
+      zpl.push(
+        '^FO' + MARGIN + ',285',
+        '^A0N,32,32',
+        '^FB' + fbW + ',3,4,C,0',
+        '^FD' + desc + '^FS'
+      );
+    }
+    zpl.push('^PQ' + qty + ',0,1,Y', '^XZ');
+    return zpl.join('\n');
   }
 
   // ── Print ──
   async function printLabel() {
     const code = document.getElementById('codeInput').value.trim();
+    const desc = document.getElementById('descInput').value.trim();
     const qty = parseInt(document.getElementById('qtyInput').value) || 1;
     if (!code) return;
 
@@ -313,39 +647,255 @@
     btn.disabled = true;
     btn.textContent = '⏳ Sending...';
 
-    const zpl = buildZPL(code, qty);
-
-    try {
-      await fetch(getPrinterUrl(), {
-        method: 'POST',
-        headers: { 'Content-Type': 'text/plain' },
-        body: zpl,
-        signal: AbortSignal.timeout(6000)
-      });
-      showToast('✓ ' + qty + ' label' + (qty > 1 ? 's' : '') + ' sent!', 'success');
-      addHistory(code, qty);
+    if (await sendZPL(buildZPL(code, qty, desc, findInfo(code)), qty)) {
+      addHistory(code, qty, desc);
       document.getElementById('codeInput').value = '';
-      document.getElementById('bcPreview').innerHTML =
-        '<div class="bc-placeholder">Scan or type a barcode number<br>to preview it here</div>';
-    } catch (e) {
-      // Zebra printers often close the connection immediately after receiving ZPL
-      // which causes a fetch error even when the print succeeded
-      showToast('✓ Label sent — check printer', 'info');
-      addHistory(code, qty);
-      document.getElementById('codeInput').value = '';
-      document.getElementById('bcPreview').innerHTML =
-        '<div class="bc-placeholder">Scan or type a barcode number<br>to preview it here</div>';
+      document.getElementById('descInput').value = '';
+      lastLookupKey = null;
+      descAutoFilled = false;
+      onCodeInput();
     }
 
     btn.disabled = false;
     btn.textContent = '🖨️ Print Label';
   }
 
+  // Sends ZPL to the printer and updates status/toast. Returns true on success.
+  async function sendZPL(zpl, qty) {
+    try {
+      // no-cors: the printer sends no CORS headers; a rejection here means
+      // the printer could not be reached at all.
+      await fetch(getPrinterUrl(), {
+        method: 'POST',
+        mode: 'no-cors',
+        headers: { 'Content-Type': 'text/plain' },
+        body: zpl,
+        signal: AbortSignal.timeout(10000)
+      });
+      showToast('✓ ' + qty + ' label' + (qty > 1 ? 's' : '') + ' sent!', 'success');
+      setStatus('connected', document.getElementById('ipInput').value.trim());
+      return true;
+    } catch (e) {
+      showToast('✗ Could not reach printer', 'error');
+      setStatus('error', 'Offline');
+      document.getElementById('connHelp').classList.add('show');
+      return false;
+    }
+  }
+
+  // ── Camera scanning (html5-qrcode, loaded only when first used) ──
+  const SCANNER_LIB = 'https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js';
+  let scanner = null, scannerLoading = null;
+
+  function loadScannerLib() {
+    if (window.Html5Qrcode) return Promise.resolve();
+    if (!scannerLoading) {
+      scannerLoading = new Promise((resolve, reject) => {
+        const s = document.createElement('script');
+        s.src = SCANNER_LIB;
+        s.onload = resolve;
+        s.onerror = () => { scannerLoading = null; reject(new Error('load failed')); };
+        document.head.appendChild(s);
+      });
+    }
+    return scannerLoading;
+  }
+
+  async function openScanner() {
+    const msg = document.getElementById('scanMsg');
+    document.getElementById('scanOverlay').classList.add('show');
+    msg.textContent = 'Starting camera...';
+
+    try {
+      await loadScannerLib();
+    } catch (e) {
+      msg.textContent = 'Could not load the scanner. Check the internet connection.';
+      return;
+    }
+
+    const F = Html5QrcodeSupportedFormats;
+    scanner = new Html5Qrcode('scanReader', {
+      verbose: false,
+      formatsToSupport: [F.CODE_128, F.CODE_39, F.CODE_93, F.EAN_13, F.EAN_8,
+                         F.UPC_A, F.UPC_E, F.ITF, F.CODABAR, F.QR_CODE, F.DATA_MATRIX],
+      experimentalFeatures: { useBarCodeDetectorIfSupported: true }
+    });
+
+    try {
+      await scanner.start(
+        { facingMode: 'environment' },
+        { fps: 10, qrbox: (w, h) => ({ width: Math.floor(w * 0.9), height: Math.floor(h * 0.5) }) },
+        onScanSuccess,
+        () => {}   // called for every frame without a barcode; ignore
+      );
+      msg.textContent = 'Point the camera at a barcode';
+    } catch (e) {
+      msg.textContent = 'Camera unavailable. Allow camera access for this page and try again.';
+      scanner = null;
+    }
+  }
+
+  async function onScanSuccess(text) {
+    if (!scanner) return;   // already handled a read from an earlier frame
+    await closeScanner();
+    if (navigator.vibrate) navigator.vibrate(100);
+    document.getElementById('codeInput').value = text.trim();
+    onCodeInput();
+    showToast('✓ Scanned ' + text.trim(), 'success');
+    document.getElementById('descInput').focus();
+  }
+
+  async function closeScanner() {
+    document.getElementById('scanOverlay').classList.remove('show');
+    if (!scanner) return;
+    const s = scanner;
+    scanner = null;
+    try { await s.stop(); } catch (e) {}
+    try { s.clear(); } catch (e) {}
+  }
+
+  // ── Hidden image mode: tap the "Label Printer" title 5 times ──
+  const IMG_W = PW, IMG_H = 386;   // printed at ^FO0,10 on the 406-dot label
+  const EMOJI_FONT = '"Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif';
+  let imgSource = null;            // { type: 'emoji', text } or { type: 'image', img }
+  let imgBits = null;              // packed 1-bit rows, ready for ^GFA
+  let titleTaps = 0, titleTapTimer = null;
+
+  document.getElementById('appTitle').addEventListener('click', () => {
+    titleTaps++;
+    clearTimeout(titleTapTimer);
+    titleTapTimer = setTimeout(() => { titleTaps = 0; }, 1500);
+    if (titleTaps < 5) return;
+    titleTaps = 0;
+    const card = document.getElementById('imageCard');
+    const show = card.style.display === 'none';
+    card.style.display = show ? '' : 'none';
+    showToast(show ? 'Image mode on' : 'Image mode off', 'info');
+    if (show) card.scrollIntoView({ behavior: 'smooth' });
+  });
+
+  function onEmojiInput() {
+    const text = document.getElementById('emojiInput').value.trim();
+    document.getElementById('imageFile').value = '';
+    imgSource = text ? { type: 'emoji', text } : null;
+    renderImage();
+  }
+
+  function onImageFile(input) {
+    const file = input.files[0];
+    if (!file) return;
+    const img = new Image();
+    img.onload = () => {
+      URL.revokeObjectURL(img.src);
+      document.getElementById('emojiInput').value = '';
+      imgSource = { type: 'image', img };
+      renderImage();
+    };
+    img.onerror = () => showToast('✗ Could not open that image', 'error');
+    img.src = URL.createObjectURL(file);
+  }
+
+  // Draws the source on a white canvas, converts it to black/white with
+  // Floyd–Steinberg dithering, shows the result, and stores the packed bits.
+  function renderImage() {
+    const preview = document.getElementById('imgPreview');
+    const btn = document.getElementById('imgPrintBtn');
+    if (!imgSource) {
+      preview.style.display = 'none';
+      document.getElementById('imgPlaceholder').style.display = '';
+      imgBits = null;
+      btn.disabled = true;
+      return;
+    }
+
+    const work = document.createElement('canvas');
+    work.width = IMG_W; work.height = IMG_H;
+    const ctx = work.getContext('2d');
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(0, 0, IMG_W, IMG_H);
+
+    if (imgSource.type === 'emoji') {
+      let size = IMG_H * 0.9;
+      ctx.font = size + 'px ' + EMOJI_FONT;
+      const w = ctx.measureText(imgSource.text).width;
+      if (w > IMG_W * 0.95) size *= (IMG_W * 0.95) / w;
+      ctx.font = size + 'px ' + EMOJI_FONT;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillStyle = '#000';
+      ctx.fillText(imgSource.text, IMG_W / 2, IMG_H / 2 + size * 0.05);
+    } else {
+      const img = imgSource.img;
+      const scale = Math.min(IMG_W / img.width, IMG_H / img.height);
+      const w = img.width * scale, h = img.height * scale;
+      ctx.drawImage(img, (IMG_W - w) / 2, (IMG_H - h) / 2, w, h);
+    }
+
+    const data = ctx.getImageData(0, 0, IMG_W, IMG_H);
+    const px = data.data;
+    const gray = new Float32Array(IMG_W * IMG_H);
+    for (let i = 0; i < gray.length; i++) {
+      const a = px[i * 4 + 3] / 255;
+      const lum = 0.299 * px[i * 4] + 0.587 * px[i * 4 + 1] + 0.114 * px[i * 4 + 2];
+      gray[i] = lum * a + 255 * (1 - a);
+    }
+
+    const rowBytes = IMG_W / 8;
+    const bits = new Uint8Array(rowBytes * IMG_H);
+    for (let y = 0; y < IMG_H; y++) {
+      for (let x = 0; x < IMG_W; x++) {
+        const i = y * IMG_W + x;
+        const black = gray[i] < 128;
+        const err = gray[i] - (black ? 0 : 255);
+        if (x + 1 < IMG_W) gray[i + 1] += err * 7 / 16;
+        if (y + 1 < IMG_H) {
+          if (x > 0) gray[i + IMG_W - 1] += err * 3 / 16;
+          gray[i + IMG_W] += err * 5 / 16;
+          if (x + 1 < IMG_W) gray[i + IMG_W + 1] += err * 1 / 16;
+        }
+        if (black) bits[y * rowBytes + (x >> 3)] |= 0x80 >> (x & 7);
+        const v = black ? 0 : 255;
+        px[i * 4] = px[i * 4 + 1] = px[i * 4 + 2] = v;
+        px[i * 4 + 3] = 255;
+      }
+    }
+
+    preview.width = IMG_W; preview.height = IMG_H;
+    preview.getContext('2d').putImageData(data, 0, 0);
+    preview.style.display = '';
+    document.getElementById('imgPlaceholder').style.display = 'none';
+    imgBits = bits;
+    btn.disabled = false;
+  }
+
+  function buildImageZPL(bits, qty) {
+    const rowBytes = IMG_W / 8;
+    let hex = '';
+    for (let i = 0; i < bits.length; i++) hex += (bits[i] < 16 ? '0' : '') + bits[i].toString(16);
+    return [
+      '^XA', '^MMT', '^PW' + PW, '^LL406', '^LS0',
+      '^FO0,10',
+      '^GFA,' + bits.length + ',' + bits.length + ',' + rowBytes + ',' + hex.toUpperCase() + '^FS',
+      '^PQ' + qty + ',0,1,Y', '^XZ'
+    ].join('\n');
+  }
+
+  async function printImage() {
+    if (!imgBits) return;
+    const qty = parseInt(document.getElementById('imgQtyInput').value) || 1;
+    const btn = document.getElementById('imgPrintBtn');
+    btn.disabled = true;
+    btn.textContent = '⏳ Sending...';
+    await sendZPL(buildImageZPL(imgBits, qty), qty);
+    btn.disabled = false;
+    btn.textContent = '🖨️ Print Image';
+  }
+
   // ── History ──
-  function addHistory(code, qty) {
+  function addHistory(code, qty, desc) {
     const now = new Date();
     const time = now.getHours() + ':' + String(now.getMinutes()).padStart(2,'0');
-    printHistory.unshift({ code, qty, time });
+    printHistory.unshift({ code, qty, desc, time });
     renderHistory();
   }
 
@@ -363,7 +913,8 @@
       const div = document.createElement('div');
       div.className = 'h-item';
       div.innerHTML =
-        '<span class="h-code">' + h.code + '</span>'
+        '<span class="h-code">' + escapeHtml(h.code)
+        + (h.desc ? '<span class="h-desc">' + escapeHtml(h.desc) + '</span>' : '') + '</span>'
         + '<span class="h-qty">×' + h.qty + '</span>'
         + '<span class="h-time">' + h.time + '</span>'
         + '<button class="h-reprint" onclick="reprint(' + i + ')">Reprint</button>';
@@ -375,6 +926,7 @@
     const h = printHistory[i];
     document.getElementById('codeInput').value = h.code;
     document.getElementById('qtyInput').value = h.qty;
+    document.getElementById('descInput').value = h.desc || '';
     onCodeInput();
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
@@ -390,9 +942,44 @@
   }
 
   // Enter to print
-  document.getElementById('codeInput').addEventListener('keydown', e => {
-    if (e.key === 'Enter') printLabel();
-  });
+  ['codeInput', 'descInput'].forEach(id =>
+    document.getElementById(id).addEventListener('keydown', e => {
+      if (e.key === 'Enter') printLabel();
+    }));
+
+  // Check the printer as soon as the page opens, so the Approve button
+  // shows up right away if this browser session hasn't approved it yet.
+  if (document.getElementById('ipInput').value.trim()) checkPrinter(true);
+
+  // ── Tag from the page link ──
+  // The Hunt Board artifact opens this page as
+  //   #code=151654&qty=1&name=...&kind=part&id=85294&autoprint=1
+  // Fill the form from it and, with autoprint=1, print right away.
+  function readLinkJob() {
+    const p = new URLSearchParams(location.hash.slice(1));
+    const code = (p.get('code') || '').trim();
+    if (!code) return;
+    const name = (p.get('name') || '').replace(/\s+/g, ' ').trim();
+    const id = (p.get('id') || '').trim();
+    const kind = (p.get('kind') || '').trim().toLowerCase() === 'area' ? 'area' : 'item';
+    linkJob = { code, info: id ? { kind, id, name } : null };
+
+    // Drop the tag from the address so a reload doesn't print it again
+    history.replaceState(null, '', location.pathname + location.search);
+
+    document.getElementById('codeInput').value = code;
+    document.getElementById('qtyInput').value =
+      Math.min(99, Math.max(1, parseInt(p.get('qty')) || 1));
+    onCodeInput();
+    if (!linkJob.info && name) {
+      document.getElementById('descInput').value = name.slice(0, 120);
+      onCodeInput();
+    }
+    if (p.get('autoprint') === '1') printLabel();
+  }
+  readLinkJob();
+
+  loadDefaultLookup();
 </script>
 </body>
 </html>
